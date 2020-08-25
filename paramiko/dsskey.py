@@ -51,6 +51,7 @@ class DSSKey(PKey):
         password=None,
         vals=None,
         file_obj=None,
+        ignore_header_footer=False,
     ):
         self.p = None
         self.q = None

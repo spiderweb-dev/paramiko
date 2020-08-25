@@ -45,6 +45,7 @@ class RSAKey(PKey):
         password=None,
         key=None,
         file_obj=None,
+        ignore_header_footer=False,
     ):
         self.key = None
         self.public_blob = None
@@ -52,7 +53,7 @@ class RSAKey(PKey):
             self._from_private_key(file_obj, password)
             return
         if filename is not None:
-            self._from_private_key_file(filename, password)
+            self._from_private_key_file(filename, password, ignore_header_footer)
             return
         if (msg is None) and (data is not None):
             msg = Message(data)
@@ -171,12 +172,12 @@ class RSAKey(PKey):
 
     # ...internals...
 
-    def _from_private_key_file(self, filename, password):
-        data = self._read_private_key_file("RSA", filename, password)
+    def _from_private_key_file(self, filename, password, ignore_header_footer=False):
+        data = self._read_private_key_file("RSA", filename, password, ignore_header_footer)
         self._decode_key(data)
 
-    def _from_private_key(self, file_obj, password):
-        data = self._read_private_key("RSA", file_obj, password)
+    def _from_private_key(self, file_obj, password, ignore_header_footer=False):
+        data = self._read_private_key("RSA", file_obj, password, ignore_header_footer)
         self._decode_key(data)
 
     def _decode_key(self, data):

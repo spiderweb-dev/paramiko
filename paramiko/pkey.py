@@ -212,7 +212,7 @@ class PKey(object):
         return False
 
     @classmethod
-    def from_private_key_file(cls, filename, password=None):
+    def from_private_key_file(cls, filename, password=None, ignore_header_footer=False):
         """
         Create a key object by reading a private key file.  If the private
         key is encrypted and ``password`` is not ``None``, the given password
@@ -232,11 +232,11 @@ class PKey(object):
             encrypted, and ``password`` is ``None``
         :raises: `.SSHException` -- if the key file is invalid
         """
-        key = cls(filename=filename, password=password)
+        key = cls(filename=filename, password=password, ignore_header_footer=ignore_header_footer)
         return key
 
     @classmethod
-    def from_private_key(cls, file_obj, password=None):
+    def from_private_key(cls, file_obj, password=None, ignore_header_footer=False):
         """
         Create a key object by reading a private key from a file (or file-like)
         object.  If the private key is encrypted and ``password`` is not
@@ -253,7 +253,7 @@ class PKey(object):
             if the private key file is encrypted, and ``password`` is ``None``
         :raises: `.SSHException` -- if the key file is invalid
         """
-        key = cls(file_obj=file_obj, password=password)
+        key = cls(file_obj=file_obj, password=password, ignore_header_footer=ignore_header_footer)
         return key
 
     def write_private_key_file(self, filename, password=None):
@@ -283,7 +283,7 @@ class PKey(object):
         """
         raise Exception("Not implemented in PKey")
 
-    def _read_private_key_file(self, tag, filename, password=None):
+    def _read_private_key_file(self, tag, filename, password=None, ignore_header_footer=False):
         """
         Read an SSH2-format private key file, looking for a string of the type
         ``"BEGIN xxx PRIVATE KEY"`` for some ``xxx``, base64-decode the text we
@@ -305,30 +305,36 @@ class PKey(object):
         :raises: `.SSHException` -- if the key file is invalid.
         """
         with open(filename, "r") as f:
-            data = self._read_private_key(tag, f, password)
+            data = self._read_private_key(tag, f, password, ignore_header_footer)
         return data
 
-    def _read_private_key(self, tag, f, password=None):
+    def _read_private_key(self, tag, f, password=None, ignore_header_footer=False):
         lines = f.readlines()
 
-        # find the BEGIN tag
-        start = 0
-        m = self.BEGIN_TAG.match(lines[start])
-        line_range = len(lines) - 1
-        while start < line_range and not m:
-            start += 1
+        if not ignore_header_footer:
+            # find the BEGIN tag
+            start = 0
             m = self.BEGIN_TAG.match(lines[start])
-        start += 1
-        keytype = m.group(1) if m else None
-        if start >= len(lines) or keytype is None:
-            raise SSHException("not a valid {} private key file".format(tag))
+            line_range = len(lines) - 1
+            while start < line_range and not m:
+                start += 1
+                m = self.BEGIN_TAG.match(lines[start])
+            start += 1
+            keytype = m.group(1) if m else None
+            if start >= len(lines) or keytype is None:
+                raise SSHException("not a valid {} private key file".format(tag))
 
-        # find the END tag
-        end = start
-        m = self.END_TAG.match(lines[end])
-        while end < line_range and not m:
-            end += 1
+            # find the END tag
+            end = start
             m = self.END_TAG.match(lines[end])
+            while end < line_range and not m:
+                end += 1
+                m = self.END_TAG.match(lines[end])
+        else:
+            # Assumes header and footer are end lines of files and that the keytype matches the tag
+            start = 1
+            end = len(lines) - 1
+            keytype = tag
 
         if keytype == tag:
             data = self._read_private_key_pem(lines, end, password)
